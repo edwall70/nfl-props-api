@@ -1,8 +1,7 @@
 {
   "functions": {
-    "api/games.js": {
-      "runtime": "nodejs18.x",
-      "maxDuration": 30
+    "api/*.js": {
+      "runtime": "nodejs20.x"
     }
   }
 }
