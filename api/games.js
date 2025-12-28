@@ -6,8 +6,12 @@ export default async function handler(req, res) {
 
   const action = req.query.action;
   const gameId = req.query.gameId;
-  const API_KEY = process.env.ODDS_API_KEY || '001933cab2f071ff99421cb5c3696a88';
+  const API_KEY = process.env.ODDS_API_KEY;
 
+    // Check if API key is configured
+  if (!API_KEY) {
+    return res.status(500).json({ success: false, error: 'API key not configured' });
+  }
   if (action === 'games') {
     try {
       const gamesRes = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
