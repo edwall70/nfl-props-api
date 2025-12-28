@@ -25,12 +25,13 @@ export default async function handler(req, res) {
       const sport = 'americanfootball_nfl';
       const markets = 'player_pass_tds,player_pass_yds,player_rush_yds,player_receptions';
       
-      const propsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/events?apiKey=${API_KEY}&markets=${markets}&oddsFormat=decimal`;
+      const propsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds?apiKey=${API_KEY}&regions=us&markets=${markets}&oddsFormat=decimal`;
       
       const propsRes = await fetch(propsUrl);
       const propsData = await propsRes.json();
       
-      if (!propsData || propsData.length === 0) {
+      // The Odds API returns an array of games with bookmakers
+      if (!propsData || !Array.isArray(propsData) || propsData.length === 0) {
         return res.json({
           success: true,
           data: {
@@ -39,14 +40,18 @@ export default async function handler(req, res) {
         });
       }
       
-      // Transform the data to match the expected format
-      // For now, return the first event's bookmakers
-      const firstEvent = propsData[0];
+      // Combine all bookmakers from all games
+      const allBookmakers = [];
+      propsData.forEach(game => {
+        if (game.bookmakers && Array.isArray(game.bookmakers)) {
+          allBookmakers.push(...game.bookmakers);
+        }
+      });
       
       return res.json({
         success: true,
         data: {
-          bookmakers: firstEvent.bookmakers || []
+          bookmakers: allBookmakers
         }
       });
     } catch (error) {
