@@ -21,17 +21,15 @@ export default async function handler(req, res) {
 
   if (action === 'props') {
     try {
-      // Fetch player props from The Odds API
       const sport = 'americanfootball_nfl';
       const markets = 'player_pass_tds,player_pass_yds,player_rush_yds,player_receptions';
       
-      const propsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/odds?apiKey=${API_KEY}&regions=us&markets=${markets}&oddsFormat=decimal`;
+      // First, get list of games/events to find IDs
+      const eventsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/events?apiKey=${API_KEY}`;
+      const eventsRes = await fetch(eventsUrl);
+      const eventsData = await eventsRes.json();
       
-      const propsRes = await fetch(propsUrl);
-      const propsData = await propsRes.json();
-      
-      // The Odds API returns an array of games with bookmakers
-      if (!propsData || !Array.isArray(propsData) || propsData.length === 0) {
+      if (!eventsData || !Array.isArray(eventsData) || eventsData.length === 0) {
         return res.json({
           success: true,
           data: {
@@ -40,18 +38,22 @@ export default async function handler(req, res) {
         });
       }
       
-      // Combine all bookmakers from all games
-      const allBookmakers = [];
-      propsData.forEach(game => {
-        if (game.bookmakers && Array.isArray(game.bookmakers)) {
-          allBookmakers.push(...game.bookmakers);
-        }
-      });
+      // Get props for the first available event
+      const firstEvent = eventsData[0];
+      const eventId = firstEvent.id;
+      
+      const propsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/events/${eventId}/odds?apiKey=${API_KEY}&regions=us&markets=${markets}&oddsFormat=decimal`;
+      
+      const propsRes = await fetch(propsUrl);
+      const propsData = await propsRes.json();
+      
+      // Extract bookmakers from the event
+      const bookmakers = propsData.bookmakers || [];
       
       return res.json({
         success: true,
         data: {
-          bookmakers: allBookmakers
+          bookmakers: bookmakers
         }
       });
     } catch (error) {
