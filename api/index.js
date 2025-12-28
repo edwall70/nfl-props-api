@@ -3,32 +3,40 @@ const axios = require('axios');
 const ODDS_API_KEY = process.env.ODDS_API_KEY;
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
-async function getNFLGames() {
+// Cache for games
+let cachedGames = [];
+let cachedProps = {};
+
+async function fetchAndCacheGames() {
   try {
     const response = await axios.get(`${ODDS_API_BASE}/sports/americanfootball_nfl/events`, {
       params: { apiKey: ODDS_API_KEY }
     });
-    return response.data.events || [];
+    cachedGames = response.data.events || [];
+    console.log(`Cached ${cachedGames.length} games`);
+    return cachedGames;
   } catch (error) {
     console.error('Error fetching games:', error.message);
-    return [];
+    return cachedGames;
   }
 }
 
-async function getAllNFLProps() {
+async function fetchAndCacheProps() {
   try {
     const response = await axios.get(`${ODDS_API_BASE}/sports/americanfootball_nfl/odds`, {
       params: {
         apiKey: ODDS_API_KEY,
-        markets: 'player_pass_yds,player_pass_tds,player_rush_yds,player_rec_yds',
+        markets: 'player_pass_yds,player_pass_tds,player_rush_yds,player_rec_yds,player_rec_rec',
         oddsFormat: 'decimal',
         regions: 'us'
       }
     });
-    return response.data;
+    cachedProps = response.data || { bookmakers: [] };
+    console.log(`Cached props from ${cachedProps.bookmakers?.length || 0} bookmakers`);
+    return cachedProps;
   } catch (error) {
     console.error('Error fetching props:', error.message);
-    return { bookmakers: [] };
+    return cachedProps;
   }
 }
 
@@ -38,7 +46,6 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -50,13 +57,23 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing action parameter' });
     }
 
+    // Fetch fresh games
     if (action === 'games') {
-      const games = await getNFLGames();
-      return res.status(200).json({ success: true, events: games });
+      const games = await fetchAndCacheGames();
+      return res.status(200).json({ 
+        success: true, 
+        events: games.map(g => ({
+          id: g.id,
+          home_team: g.home_team,
+          away_team: g.away_team,
+          commence_time: g.commence_time
+        }))
+      });
     }
 
+    // Fetch fresh props
     if (action === 'props') {
-      const props = await getAllNFLProps();
+      const props = await fetchAndCacheProps();
       return res.status(200).json({ success: true, data: props });
     }
 
