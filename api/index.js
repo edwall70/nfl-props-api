@@ -10,7 +10,7 @@ async function getNFLGames() {
     });
     return response.data.events || [];
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error fetching games:', error.message);
     return [];
   }
 }
@@ -27,34 +27,43 @@ async function getAllNFLProps() {
     });
     return response.data;
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error fetching props:', error.message);
     return { bookmakers: [] };
   }
 }
 
 module.exports = async (req, res) => {
-  const { action } = req.query;
-
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   try {
+    const { action } = req.query;
+
+    if (!action) {
+      return res.status(400).json({ error: 'Missing action parameter' });
+    }
+
     if (action === 'games') {
       const games = await getNFLGames();
-      return res.json({ events: games });
+      return res.status(200).json({ success: true, events: games });
     }
 
     if (action === 'props') {
       const props = await getAllNFLProps();
-      return res.json(props);
+      return res.status(200).json({ success: true, data: props });
     }
 
-    return res.status(400).json({ error: 'Invalid action' });
+    return res.status(400).json({ error: `Unknown action: ${action}` });
+
   } catch (error) {
+    console.error('API Error:', error);
     return res.status(500).json({ error: error.message });
   }
 };
