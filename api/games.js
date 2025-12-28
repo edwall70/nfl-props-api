@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   const action = req.query.action;
+  const API_KEY = process.env.ODDS_API_KEY || '001933cab2f071ff99421cb5c3696a88';
 
   if (action === 'games') {
     try {
@@ -19,25 +20,33 @@ export default async function handler(req, res) {
   }
 
   if (action === 'props') {
-    // TODO: Implement props fetching from a sportsbook API
-    // For now, return mock data structure
     try {
+      // Fetch player props from The Odds API
+      const sport = 'americanfootball_nfl';
+      const markets = 'player_pass_tds,player_pass_yds,player_rush_yds,player_receptions';
+      
+      const propsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/events?apiKey=${API_KEY}&markets=${markets}&oddsFormat=decimal`;
+      
+      const propsRes = await fetch(propsUrl);
+      const propsData = await propsRes.json();
+      
+      if (!propsData || propsData.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            bookmakers: []
+          }
+        });
+      }
+      
+      // Transform the data to match the expected format
+      // For now, return the first event's bookmakers
+      const firstEvent = propsData[0];
+      
       return res.json({
         success: true,
         data: {
-          bookmakers: [
-            {
-              title: 'Sample Sportsbook',
-              markets: [
-                {
-                  key: 'player_pass_yds',
-                  outcomes: [
-                    { description: 'Sample Player', price: 1.91 }
-                  ]
-                }
-              ]
-            }
-          ]
+          bookmakers: firstEvent.bookmakers || []
         }
       });
     } catch (error) {
