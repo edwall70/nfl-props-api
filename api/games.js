@@ -1,20 +1,22 @@
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
-  const { action } = req.query || {};
+  const { action } = req.query;
 
   if (!action) {
-    return res.status(400).json({ error: 'Missing action parameter' });
+    res.status(400).json({ error: 'Missing action parameter' });
+    return;
   }
 
   if (action === 'games') {
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       events: [
         {
@@ -31,14 +33,8 @@ module.exports = async (req, res) => {
         }
       ]
     });
+    return;
   }
 
-  if (action === 'props') {
-    return res.status(200).json({
-      success: true,
-      data: { bookmakers: [] }
-    });
-  }
-
-  return res.status(400).json({ error: `Unknown action: ${action}` });
-};
+  res.status(400).json({ error: `Unknown action: ${action}` });
+}
