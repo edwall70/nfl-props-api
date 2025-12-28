@@ -3,84 +3,37 @@ const axios = require('axios');
 const ODDS_API_KEY = process.env.ODDS_API_KEY;
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
-// Cache for games
-let cachedGames = [];
-let cachedProps = {};
+// Sample games for testing
+const SAMPLE_GAMES = [
+  {
+    id: 'nfl_kc_pit',
+    home_team: 'Kansas City Chiefs',
+    away_team: 'Pittsburgh Steelers',
+    commence_time: '2025-12-28T18:00Z'
+  },
+  {
+    id: 'nfl_buf_mia',
+    home_team: 'Buffalo Bills',
+    away_team: 'Miami Dolphins',
+    commence_time: '2025-12-28T20:30Z'
+  }
+];
 
-async function fetchAndCacheGames() {
+async function getNFLGames() {
   try {
+    console.log('Attempting to fetch games with key:', ODDS_API_KEY ? 'KEY_SET' : 'NO_KEY');
     const response = await axios.get(`${ODDS_API_BASE}/sports/americanfootball_nfl/events`, {
-      params: { apiKey: ODDS_API_KEY }
+      params: { apiKey: ODDS_API_KEY },
+      timeout: 10000
     });
-    cachedGames = response.data.events || [];
-    console.log(`Cached ${cachedGames.length} games`);
-    return cachedGames;
+    console.log('Got response:', response.data);
+    const games = response.data.events || [];
+    console.log(`Found ${games.length} games`);
+    
+    return games.length > 0 ? games : SAMPLE_GAMES;
   } catch (error) {
-    console.error('Error fetching games:', error.message);
-    return cachedGames;
+    console.error('Error fetching games:', error.message, error.response?.status);
+    return SAMPLE_GAMES;
   }
 }
 
-async function fetchAndCacheProps() {
-  try {
-    const response = await axios.get(`${ODDS_API_BASE}/sports/americanfootball_nfl/odds`, {
-      params: {
-        apiKey: ODDS_API_KEY,
-        markets: 'player_pass_yds,player_pass_tds,player_rush_yds,player_rec_yds,player_rec_rec',
-        oddsFormat: 'decimal',
-        regions: 'us'
-      }
-    });
-    cachedProps = response.data || { bookmakers: [] };
-    console.log(`Cached props from ${cachedProps.bookmakers?.length || 0} bookmakers`);
-    return cachedProps;
-  } catch (error) {
-    console.error('Error fetching props:', error.message);
-    return cachedProps;
-  }
-}
-
-module.exports = async (req, res) => {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  try {
-    const { action } = req.query;
-
-    if (!action) {
-      return res.status(400).json({ error: 'Missing action parameter' });
-    }
-
-    // Fetch fresh games
-    if (action === 'games') {
-      const games = await fetchAndCacheGames();
-      return res.status(200).json({ 
-        success: true, 
-        events: games.map(g => ({
-          id: g.id,
-          home_team: g.home_team,
-          away_team: g.away_team,
-          commence_time: g.commence_time
-        }))
-      });
-    }
-
-    // Fetch fresh props
-    if (action === 'props') {
-      const props = await fetchAndCacheProps();
-      return res.status(200).json({ success: true, data: props });
-    }
-
-    return res.status(400).json({ error: `Unknown action: ${action}` });
-
-  } catch (error) {
-    console.error('API Error:', error);
-    return res.status(500).json({ error: error.message });
-  }
-};
